@@ -1,0 +1,248 @@
+---
+title: "Multivariate Stat Workshop - Cluster analysis"
+author: "sbsambado"
+date: "1/10/2022"
+output: html_document
+---
+
+This workshop is intended for a grass-root graduate student led workshop covering theory and code on advanced statistical methods.
+
+## Cluster analysis
+
+*Note*: a lot of text and code were taken from R labs for community ecology and UCSB EEMB 146 created by Tatum Katz
+
+Cluster analysis is a multivariate analysis that attempts to form groups or "clusters" of objects that are "similar" to each other but which different among clusters. The exact definition of "similar" is variable among algorithms, but has a generic basis. 
+
+*Similarity* is a characterization of the ratio of numbe of attributes two objects share in common compared to the total list of attributes between them. Objects with everything in common have a similarity of 1.0 and nothin in common have a similarity of 0.0. *Dissimilarity* is a characterization of the number of attributes two objects have uniquely compared to the total list of attributes between them. In general, dissimilarity can be calcuated as similarity.
+
+Distance is a geometric conception of the proximity of objects in a high dimensional space defined by measurements on the attributes. R calculates distances with the `dist` function and uses "euclidean", "manhattan", or "binary" as the metric. 
+
+Cluster algorithms are classified by two characteristics: (1) hierarchical vs fixed-cluster and (2) if hierarchical, agglomerative vs divisive.
+
+Cluster analysis is also an unsupervised machine learning technique, but is a little more straightforward than PCA. It does just what it says - it will cluster your observations into groups based on how similar they are! With cluster analysis, there are many decisions to make. How many groups do you want? How will you define "similarity"? All of these choices need to be justified either statistically or biologically. Cluster analysis is great for "letting the data speak for itself" and understanding the relatedness of your observations. There are many ways to perform cluster analysis, but here I will show you the hierarchical agglomerative approach. There are no assumptions for this technique?! Other than the usual "good data" assumption, of course.
+
+In the hierarchical approach, you use your predictors to calculate the "distance" between each data point. At each step of the algorithm, the two most similar points (or clusters) will be grouped together. The hierarchical approach will go on until every point is grouped into one giant, final group. Then, you must decide where to cut your new decision tree to determine the number of clusters! Agglomerative just means we build the tree from points to one group, instead of starting with one giant group and then splitting it down to individual points.
+
+Agglomerative cluster alogrithms differ in the calculation of similarity when more than one plot is involved. In R there are multiple methods to calculate similarity: 
+
++ single -- nearest neighbor
+
++ complete -- furthest neighbor
+
++ ward -- Ward's minimum variance method
+
++ average -- average similarity
+
++ centroid -- geometric centroid
+
++ flexible -- flexible Beta
+
+>[Hierarchical clustering explained](https://towardsdatascience.com/hierarchical-clustering-explained-e58d2f936323#:~:text=Hierarchical%20clustering%20means%20creating%20a,Agglomerative%20clustering)  
+>[Hierarchical cluster analysis in R](https://www.r-bloggers.com/hierarchical-clustering-in-r-2/)
+>[R labs for community ecologist](http://ecology.msu.montana.edu/labdsv/R/labs/lab13/lab13.html)
+
+**Example 1**: Hierarchical clustering (agglomerative)
+```{r clustering example from EEMB 146, message=FALSE}
+
+### Cluster Analysis: the hierarchical agglomerative flavor ###
+
+
+library(dendextend)
+library(factoextra)
+
+data(mtcars) #another CLASSIC r dataset!
+
+# step 1: calculate the distance matrix and generate the clusters
+
+d <- dist(as.matrix(mtcars)) #data must be in a matrix for dist to work
+
+hc <- hclust(d) #this actually runs the hierarchical clustering algorithm, based on the distances you just calculated. hclust uses the "complete linkage" method by default to define the clusters
+
+
+# step 2: analyze results
+
+plot(hc) #holy dendrogram, batman!
+
+fviz_nbclust(mtcars, FUN=hcut, method="wss") #get an elbow plot, just like PCA! pick the k that reduces your total within sum of squares sufficiently
+
+fviz_nbclust(mtcars, FUN=hcut, method="silhouette") #average silhouette method to determine optimal k. measures the quality of the clustering, ie how well each datapoint lies within its cluster. high average silhouette width indicates good clustering
+
+
+# step 3: beautiful plotting
+
+dend <- as.dendrogram(hc) #generate the dendrogram
+dend <- color_branches(dend, k=3) #color based on the number of clusters you determined
+dend <- set(dend, "labels_cex", 0.5) #reduce label size so they all fit nicely
+plot(dend)
+
+
+```
+
+#### Example 1 exercises  
+
+Use the links above and help files in the R documentation (ie, ?function) to answer the questions below
+
+1. What type of distance does dist() use by default? What are some other options you can use?
+2. Explain what complete linkage means.
+3. What are some disadvantages of cluster analysis?
+4. What k would you select for the above analysis? Why?
+
+##### Example 1 answers (cause I know you want 'em)
+1. Dist uses Euclidean distance by default. You could also choose manhattan distance or cosine similarity
+
+2. Under complete linkage, for each pair of clusters, the algorithm computes and merges them to minimize the maximum distance between the clusters, ie the distance of the farthest elements
+
+3. Some disadvantages are computational cost, it is sensitive to noise and outliers, and we have to define the number of clusters
+
+4. Really any value between 2 and 4 is a good answer, they should explain why based on the elbow plot and silhouette plot
+
+
+### More cluster methods
+
+**Example 2**: K-means & hierarchical clustering. Visualization with a dendrogram & heatmap.
+
+>[Cluster Analysis-  Data Novia](https://www.datanovia.com/en/lessons/cluster-analysis-example-quick-start-r-code/)
+
+```{r example 2}
+# necessary packages
+library(cluster)
+library(factoextra)
+library(pheatmap)
+
+# data prep
+mydata <- scale(USArrests)
+
+### K-means clustering ###
+
+# requires to specify the number of clusters to be generated 
+
+# 1. determine optimal number of clusters using fvis_nbclust()
+fviz_nbclust(mydata, kmeans, method = "gap_stat") # 2 or 3 would be optimal
+
+# 2. compute and visualize k-means clustering
+set.seed(123) # for reproducibility
+km.res <- kmeans(mydata, 3, nstart = 25)
+# Visualize
+fviz_cluster(km.res, data = mydata, palette = "jco",
+             ggtheme = theme_minimal())
+
+### Hierarchical clustering ###
+
+# does not require to pre-specify the number of clusters to be generated
+res.hc <- hclust(dist(mydata),  method = "ward.D2")
+fviz_dend(res.hc, cex = 0.5, k = 4, palette = "jco")
+
+# in a heatmap, columns are samples and rows are variables. 
+pheatmap(t(mydata), cutree_cols = 4)
+
+
+```
+
+**Example 3**: K-means & hierarchical clustering using "euclidean" and "ward" distances metrics. Visualization with a dendrogram
+
+>[Cluster Analysis with R - Gabriel Martos](https://rpubs.com/gabrielmartos/ClusterAnalysis)
+
+```{r example 3}
+# install.packages("rattle")
+data(wine, package = "rattle")
+head(wine) # the composition of different wines
+
+# the clustering optimization to minimize the within-cluster sum of squares (WCSS) can be solved with function kmeans
+
+
+wine.stand <- scale(wine[-1]) # to standardize the variables
+
+# K-means
+k.means.fit <- kmeans(wine.stand, 3) # k = 3
+
+# in k.means.fit are contained all the elements of the cluster output
+attributes(k.means.fit)
+
+# centroids
+k.means.fit$centers
+
+# clusters
+k.means.fit$cluster
+
+# cluster size
+k.means.fit$size
+
+# how to determine the value of parameters k. If we look at the % of variance explained as a function of the number of clusters: one should choose a number of clusters so that adding another cluster doesn't give much better modelingof the data. The number of clusters chosen at this point, hence the "elbox criterion"
+
+wssplot <- function(data, nc=15, seed=1234){
+  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+  for (i in 2:nc){
+    set.seed(seed)
+    wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+  plot(1:nc, wss, type="b", xlab="Number of Clusters",
+       ylab="Within groups sum of squares")}
+
+wssplot(wine.stand, nc=6) 
+
+
+# clusters allow us to represent the cluster solution into 2 dimensions
+
+library(cluster)
+
+clusplot(wine.stand, k.means.fit$cluster, main='2D representation of the Cluster solution',
+         color=TRUE, shade=TRUE,
+         labels=2, lines=0)
+
+# in order to evaluate the clustering performance we build a confusion matrix
+table(wine[,1],k.means.fit$cluster)
+
+## Now we can go forward with hierarchical clustering
+
+# hierarchiccal methods use a distance matrix as an input for clustering algorithm. The choice of an appropriate metric will influcenthe shape of the clusters
+
+d <- dist(wine.stand, method = "euclidean") # Euclidean distance matrix.
+
+# we use the euclidean distance as an input for the clustering algortihm 
+  # ward's minimum variance criterion minimizes the total within-cluster variance
+H.fit <- hclust(d, method="ward")
+
+# clustering output can be displayed in a dendrogram
+plot(H.fit) # display dendogram
+groups <- cutree(H.fit, k=3) # cut tree into 5 clusters
+# draw dendogram with red borders around the 5 clusters
+rect.hclust(H.fit, k=3, border="red")
+
+
+```
+
+
+
+**Example 4**: Hierarchcial clustering using "linkage" method
+
+>[Hierarchical Clustering in R - R bloggers](https://www.r-bloggers.com/2016/01/hierarchical-clustering-in-r-2/)
+
+```{r example 4}
+clusters <- hclust(dist(iris[, 3:4]))
+plot(clusters) # creates dendrogram
+
+# best choices for total number of clusters are either 3 or 4
+
+# we can cut off tree at the desired numbers of clusters
+
+clusterCut <- cutree(clusters, 3)
+
+# let's compare it with the original species
+
+table(clusterCut, iris$Species)
+
+# let's see if there is better linkage method: the mean linkage method
+
+clusters <- hclust(dist(iris[, 3:4]), method = "average")
+plot(clusters) # new dendrogram
+
+# let's compare with new method
+clusterCut <- cutree(clusters, 3)
+table(clusterCut, iris$Species)
+
+ggplot(iris, aes(Petal.Length, Petal.Width, color = iris$Species)) + 
+  geom_point(alpha = 0.4, size = 3.5) + geom_point(col = clusterCut) + 
+  scale_color_manual(values = c('black', 'red', 'green'))
+
+# all the points where the inner color doesn't match the outer color are the ones which were clustered incorrectly 
+```
+
