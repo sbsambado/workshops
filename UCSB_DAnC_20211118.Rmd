@@ -1,0 +1,423 @@
+---
+title: "DANC Workshop on reproducible & publishable figures"
+author: "sbsambado"
+date: "11/16/2021"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+## The "purpose"
+
+This workshop is intended for the participants in Data Analysis Coding (DAnC) club at UC Santa Barbara. The goal of this workshop is to **learn some techniques** on how to make publishable figures & tables.
+
+## Some blah, blah, blah
+
+More often than not, when I attend live coding events most things don't stick with me. When I was first learning R, this realization got me really frazzled, however once I changed my perspective that these live coding events were great opportunities to **1) ask blunt questions** about each line of code I didn't get & **2) keep these rich resources** of .Rmd files that I could revisit when I had my own data. Not to mention how great it is to meet other R enthusiasts!
+
+To be honest, **I don't intend for us to get through all of these examples today** or maybe these examples won't be useful to you for some time. However I hope when you are scrambling for time and have to give a quick presentation or submit a report for a class/ research lab/ job opportunity, you can refer to this template and save yourself some time & sanity. 
+
+What I have here **comes entirely from the internet** and kindness of Stack Overflow strangers. I have never made up anything novel in R. I try to cite my sources as best as can but honestly a lot of this comes from random google searches like 'how to move a legend box in ggplot' and dumb things I have learned 34985 previous times. 
+
+## Actual content list
+
+1. Plotting **plots** - let's keep building those ggplot skills with a familiar data set
+
+2. Quick n dirty **summary** tables
+
+3. Nice-ish **model output** tables 
+
+4. **Google satellite maps** - this is something I recently did and it took forever to make. I hope when you get to this coding stage you will not have to struggle as much as I did. You could make these things in PowerPoint but I was determined to find a solely R method. 
+
+
+### The packages and data needed for this workshop! 
+
+(with the exception of section 4)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+
+#### neccessary libraries
+
+# install.packages("ggplot2")
+library(ggplot2) # for plot making 
+
+# install.packages("tidyverse")
+library(tidyverse) # for data wrangling
+
+# install.packages("ggpubr")
+library(ggpubr)
+
+remotes::install_github("allisonhorst/palmerpenguins") # install package from Prof Horst's Github
+library(palmerpenguins) # call package into library
+
+# install.packages("gtsummary")
+library(gtsummary)
+
+# install.packages("lme4")
+library(lme4)
+
+# install.packages("effects")
+library(effects)
+
+# install.packages("jtools")
+library(jtools)
+
+
+#### neccessary data
+
+# dataset for section 1
+penguins <- palmerpenguins::penguins # more info: https://allisonhorst.github.io/palmerpenguins/
+
+# dataset for section 2
+trial <-gtsummary::trial # more info: https://www.danieldsjoberg.com/gtsummary/reference/trial.html
+
+# dataset for section 3
+penguins <- palmerpenguins::penguins # more info: https://allisonhorst.github.io/palmerpenguins/
+
+# dataset for section 4
+uc <- read.csv("uc_campuses.csv") # this is a separate dataset that is sent out with the material
+
+```
+
+### 1. More ggplots
+
+I think the main takeaway from this section is pay attention to common functions/arguments such as:
+
++ **theme()** : to me, this is my most powerful tool while plotting. Spend some time on the ?theme() help page to better understand  all the cool visual things you can do with it
+
++ **labs()** : don't be that person whose lab titles make no sense and throw some units in while you're there
+
++ **element_text()** : this is where you define the size and font type (i.e. italic or bold)
+
++ color = "green" gives a green *outline* to geom
+
++ fill = "green" give s geom that is *filled in* by green
+
+
+
+**A. The set up** 
+
+```{r}
+
+## necessary packages and data for this section
+
+library(ggplot2) # to make ggplots
+
+remotes::install_github("allisonhorst/palmerpenguins") # install package from Prof Horst's Github
+library(palmerpenguins) # call package into library
+penguins <- palmerpenguins::penguins # give dataset a name to work with 
+
+
+
+## data checking & refining
+
+# check out what kind of data you're working with
+str(penguins) # 344 rowsobservations, 8 columns/groupings
+
+# Later I will want to have labels be capitalized in my graph, this is one way of doing it
+supp.labs <- c("Female", "Male") # state your new labels 
+names(supp.labs) <- c("female", "male") # override the old lowercase labels with uppercase labels
+
+```
+
+**B. How it started**
+
+```{r}
+
+## most basic ggplot at it's core
+
+# plot 1
+ggplot(data = na.omit(penguins), 
+       aes(x = flipper_length_mm, y = bill_depth_mm)) +
+  geom_point()
+
+# plot 2 
+ggplot(na.omit(penguins), aes(x = as.factor(year), y = body_mass_g, group_by = sex)) +
+  geom_boxplot()
+  
+```
+
+**C. How it's going (as of now)**
+
+```{r}
+(plot1 <- ggplot(data = na.omit(penguins), # omit NAs from dataset for visualization purposes
+       aes(x = flipper_length_mm, y = bill_depth_mm, color = species)) + # choose our variables of interest
+  geom_point() + # geom_point makes sense since there's 2 numeric values
+  facet_grid(island ~ sex, # want to create a "grid" for our geom_points. facet_wrap is another option for 1 variable
+             scale = "free_y",  # want to y axis to best fit each group, not for entire dataset
+             labeller = labeller(sex = supp.labs)) + # want to change labels from lower to uppercase
+  scale_color_manual(values = c("#0073C2FF", "#EFC000FF", "#CD534CFF")) + # choose colors manually, could do "red","blue",etc ( make sure use scale_COLOR not scale_FILL since in line 66 we said COLOR = species)
+  labs(x = "Flipper Length (mm)", # change the x axis labels to something nicer to look at
+       y = "Bill Depth (mm)", # change the y axis labels to something nicer to look at
+       color = "Species") + # this changes the title of your legend
+  theme_bw() + # this sets the entire theme to a white background with light bordering - play around with theme_*()
+  theme(axis.title = element_text(face = "bold"), # gives us bold text for axes labels Body & Flipper
+        strip.background = element_rect(fill = "gray95"), # changes the colors of the facet_grid rectangles
+        strip.text = element_text(size = 10, face = "bold"), # change size of font in facet_grid label and make it bold
+        legend.position = "bottom", # move legend to bottom of graph (there are many ways of doing this, this is one)
+        legend.text = element_text(size = 10), # make legend text same size as facet_grid text
+        legend.title = element_text(face = "bold"))) # make legend title a bold font
+
+
+(plot2 <- ggplot(na.omit(penguins), # omit NAs from dataset for visualization purposes
+                 aes(x = as.factor(year), # i did as.factor() bc if you don't year will show up as 2017.5 which doesn't make sense in terms of this team's sampling. try it out for yourself to see without as.factor()
+                     y = body_mass_g, group_by = sex)) + # 2 other variables of interest
+  geom_violin(aes(fill = sex), trim = TRUE, draw_quantiles = c(0.25, 0.5, 0.75)) + # geom_violin shows the distribution of your points, trim gives it a sharper look, drew quantiles for each violin
+  facet_wrap(~species) + # breaking up data by 1 variable of interest
+  labs(x = "Year", # change the x axis labels to something nicer to look at
+       y = "Body Mass (g)", # change the y axis labels to something nicer to look at
+       fill = "Sex") + # this changes the title of your legend.. notice how I used FILL instead of COLOR
+  theme_bw() + # this sets the entire theme to a white background with light bordering - play around with theme_*()
+  theme(axis.title = element_text(face = "bold"), # same as above exmple
+        strip.background = element_rect(fill = "gray95"), # same as above example
+        strip.text = element_text(size = 10, face = "bold"), # same as above example
+        legend.position = c(.92, .14), # horizontal, verticle # i manually placed my legend instead of using a command, pros is that you can creatively fit it around your data, cons is that it takes a little fiddling
+        legend.box.background = element_rect(color = "black"), # giving a rectangle box with a black outline to my legend
+        legend.text = element_text(size = 10), # make legend text same size as facet_grid text
+        legend.title = element_text(face = "bold"))) # make legend title a bold font
+
+
+```
+
+**D. One simple ggpubr() example**
+
+sorry I advertised this as a ggpubr() workshop...
+
+```{r}
+# state which comparisons you would like to make between the different levels of your factor `species`
+
+my_comparisons <- list(c("Adelie", "Chinstrap"), c("Adelie", "Gentoo"), c("Chinstrap", "Gentoo"))
+
+# slightly different format that ggplot() but relatively similar concepts
+ggboxplot(na.omit(penguins), x = "species", y = "body_mass_g",  # data you want to plot
+         add = "boxplot", add.params = list(fill = "grey89")) + # fill in boxplots
+  stat_compare_means(comparisons = my_comparisons, aes(label = "p.signif")) + # print p-value of your comparisons
+  stat_compare_means(label.y = 7500, label.x = .7) + # print statistical test used to make comparisons
+  labs(x = "Species", # change axes labels
+       y = "Body Mass (g)")
+
+```
+
+
+### 2. Statistical summary tables
+
+A core concept in this section in the pipe ( %>% ). Basically whenever you see **%>%**, in your head say **'and then do this'**. It's just notation that tries to speed up the coding process by building on previous lines instead of starting over.
+
+*Notes:*
++ categorical : data that can only take on one *characteristic* (ie, dog or cat, can't be cat-dog, not *that* cat-dog)
+
++ continuous : data can take on any *numeric* value (ie, 1.2, 33, .00000002)
+
+
+**A. The set up**
+
+```{r}
+# once again here are the necessary bits for this section
+library(gt)
+library(gtsummary)
+trial <-gtsummary::trial
+
+# more info: https://www.danieldsjoberg.com/gtsummary/articles/tbl_summary.html
+
+```
+
+**B. How it started**
+
+```{r}
+# basic
+trial %>%
+  tbl_summary()
+
+dim(trial) # 200 rows/observations, 8 columns/groupings
+
+# that's a lot of info, let's focus on a subset of variables
+
+## so if my question was how is treatment type impacted by age, grade of tumor, and chemical marker?
+
+trial_subset <- trial %>%
+  select(trt, age, grade, marker)
+
+dim(trial_subset) #200 rows/observations, 3 columns/groupings
+
+```
+
+**C. How it's going**
+
+```{r}
+
+# i'm going to build this up during live coding so you can see how we go from step to step, but the final product will look something like this
+
+
+trial_table <- trial_subset %>% # use the subset of data that is to our interest
+  tbl_summary( # whatever content we want in the table, put it inside the tbl_summary() function
+    by = trt, # we are most interested in the effect of treatment 
+    statistic = list( # let's add some stats
+                     all_categorical() ~ "{n}/{N} ({p}%)", # I want all categorical values to show sampled/total (percentage)
+                     all_continuous() ~ "{mean} ({sd})"), # I want all categorical values to show mean & standard deviation
+    missing_text = "(Missing)", # instead of unknown I want them called missing -- things happen
+                     digits = marker ~ 3, # round only my marker variable to 3 digits (you could specify all_* if you'd like)
+    label = grade ~ "Tumor Grade") %>% # let's give this label something more digestable
+  add_p() %>% # let's add the wretched p-value
+  add_stat_label(location = "column") # let's let people know what stats we're showing, although could omit this
+```
+
+**D. Let's make it fancy**
+
+```{r}
+
+# let's build off our our 'trial_table' from the previous section which has all the INFO we want, but now let's give it the LOOK we want
+
+(trial_table_fancy<-trial_table %>%
+  modify_header(label ~ "**Variable**")%>% # make header columns bold
+  modify_caption("**Table 1. Patient Characteristics**") %>%# give the table a name
+  bold_labels() %>% # bold labels
+  modify_spanning_header(c("stat_1","stat_2") ~ "**Drug Type**") )# make a sub header
+  
+
+
+```
+
+### 3. Model outputs
+
+**A. The set up**
+
+```{r}
+library(lme4)
+library(effects)
+library(jtools)
+library(palmerpenguins) 
+
+
+penguins <- palmerpenguins::penguins # more info: https://allisonhorst.github.io/palmerpenguins/
+
+# more info: https://jtools.jacob-long.com/articles/summ.html
+```
+
+**B. Make the models**
+
+these may not be the "best" statistical models but it'll do for the purposes of this workshop
+
+```{r}
+
+penguins
+mod1 <- lm(body_mass_g ~ species, data = penguins)
+mod2 <- lm(body_mass_g ~ island, data = penguins)
+mod3 <- lm(body_mass_g ~ bill_depth_mm, data = penguins)
+mod4 <- lm(body_mass_g ~ sex, data = penguins)
+
+```
+
+**C. Visualize estimates for all models**
+
+```{r}
+plot_summs(mod1, mod2, mod3, mod4, # models you want to compare
+           scale = TRUE, # scale for all covariates
+           model.names = c("Species", "Island", "Bill Depth (mm)", "Sex"), # give models specific names
+           inner_ci_level = .8, # thickness of the ci band
+           coefs = c("Chinstrap" = "speciesChinstrap",
+                     "Gentoo" = "speciesGentoo",
+                     "Dream Island" = "islandDream", 
+                     "Torgersen Island" = "islandTorgersen",
+                     "Bill Depth (mm)" = "bill_depth_mm",
+                     "Sex" = "sex"))
+#ggsave("Coefficients.jpeg", dpi = 320)
+```
+
+**D. Print out pdf of model outpus**
+
+```{r}
+export_summs(mod1, mod2, mod3, mod4,
+           scale = TRUE,
+           error_format = "{statistic}, 95% CI [{conf.low}, {conf.high}]",
+           borders = .5,
+  outer_borders = 0,
+             to.file = "docx",  # could also do pdf
+             file.name = "Modeloutputs.docx") # sent it to docx so I could manually edit it there but usually if you have less models you can fit on one page of a pdf. just takes some fiddling with some of the parameters with export_summs()
+```
+
+
+### 4. Google Satellite Maps
+
+**A. The set up**
+
+```{r}
+# I didn't include these packages in the very beginning because some of these packages are quite annoying to install... so only do this if you're ready to explore google maps
+
+
+# this might be an overkill but usually this combo of packages get me to my final result
+library(ggmap)
+library(readr)
+library(tidyverse)
+library(ggrepel)
+library(ggtext)
+
+# i think these may not be necessary but just in case
+library(sf)
+library(raster)
+library(spData)
+library(spDataLarge)
+
+## Google Earth is being extra and making individual computers get APIs before using their data
+
+# some links that helped me figure this out
+
+# set up API: https://developers.google.com/earth-engine/reference/rest
+
+# get API to connect to your R studio: https://jstnbraaten.medium.com/running-google-earth-engine-from-rstudio-cloud-3faba86af8a5
+
+```
+
+**B. Call in data & clean it up**
+
+```{r}
+# load data
+uc <- read.csv("uc_campuses.csv")
+
+# make sure it is in the lat/lon format
+names(uc)
+
+# define location
+location <- with(uc,
+                 c(lon = median(lon), # make sure your column names are lon
+                   lat = median(lat)))
+```
+
+**C. How it started**
+
+```{r}
+
+# get map with appropriate zoom
+
+uc_map <- get_map(location = location, 
+                  zoom = 6, # bigger number gives you smaller zoom
+                  source = "google", # this can be "stamen"
+                  maptype = "satellite") # terain also looks nice
+
+ggmap(uc_map) # put your map into a ggmap format
+```
+
+**D. How it's going**
+
+```{r}
+
+ggmap(uc_map) + # base map
+  geom_point(data= uc ,aes(x = lon, y = lat, color = students), size = 5) + # points
+    geom_label_repel( # labels
+      aes(x = lon, y = lat, label = campus), data = uc,
+      size = 4, # size of circles
+      box.padding = .6,  # how big boxes are
+      max.overlaps = Inf,  
+      direction = "both",
+      xlim = c(-Inf,Inf),
+      min.segment.length = 0, #every box gets a line 
+      segment.size = 1) + # line width
+  coord_cartesian(clip = "off") + # fit all the boxes in the coordinates
+  labs(x = "Longitude", y = "Latitude", color = "Enrolled Students") + # change labels 
+    theme(axis.title = element_text(face = "bold")) 
+ # ggsave("reserve.png") 
+```
+
