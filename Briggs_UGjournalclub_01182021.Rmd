@@ -1,0 +1,262 @@
+---
+title: "Briggs Journal Club 01/18/21"
+author: "sbsambado"
+date: "1/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Today's Goals
+
++ 1. Create a github
++ 2. Create a github repo
++ 3. Clone a repo into a new R proj
++ 4. Go over basics of Rproj and .Rmd
++ 5. Tidyverse examples (NPS)
+      +  find sbsambado repo 206
+      +  find data file 'National Parks Visit'
+      +  download .csv directly into your R proj
+      +  go along with code
+  
+**Examples taken from Prof Allison Horst at Bren class 206 or 244**
+
+# National Parks
+
+```{r load libraries and data for NP}
+library(readr)
+library(tidyverse)
+library(ggplot2)
+
+np_visits <- read_csv("Desktop/National Parks Visitation Data.csv")
+#View(np_visits)
+```
+
+
+```{r explore data}
+
+names(np_visits) # notice the messy column names 
+dim(np_visits) # 18 variables, 21560 observations
+class(np_visits) # show difference between read.csv vs read_csv
+head(np_visits)
+tail(np_visits)
+
+# help gauge numbers in your data set, explore your outcome of interest
+
+#what was the max/min number of visitors per year
+
+# could make individual vectors (don't reccommend)
+MaxVis <- max(np_visits$Visitors, na.rm = TRUE)
+MinVis <- min(np_visits$Visitors, na.rm = TRUE)
+
+# or just do summary function (recommend)
+summary(np_visits$Visitors)
+
+```
+
+```{r data wrangling}
+
+df1 <- select(np_visits, State:YearRaw) # only select columns from state through yearraw, store as new data frame df1
+#View(df1)
+
+df2 <- filter(df1, State == "CA" & Type == "National Park" & YearRaw >= 1950) # filter to retain rows that are CA and NP
+#View(df2)
+
+df3 <- arrange(df2, Code, YearRaw)# arrange in alphabetical order in Code, THEN by ascending value in Year Raw
+#View(df3)
+
+df4 <- mutate(df3, kVis = Visitors/1000) # add new column to df3, ocnverts to units of 1000s of visitors
+#View(df4) # 578 observations, 7 variables
+
+summary(df4) # like to reevaluate my dataset after cleaning it up; YearRaw = character?
+unique(np_visits$YearRaw)
+
+df5 <- filter(df4, YearRaw != "Total") # remove 'total' values in the YearRaw column (!= does NOT match)
+
+summary(df5) # we need to change year to numeric vs character
+
+df5$YearRaw <- as.numeric(df5$YearRaw)
+
+class(df5$YearRaw) # make sure it changes
+```
+
+Intro to piping
+```{r intro to piping}
+
+# %>% (command + shift + m) is saying "and then..."
+
+utah_np <- np_visits %>% 
+  filter(State == "UT", Type == "National Park") %>% 
+  select(Name, Visitors, YearRaw) %>% 
+  filter(YearRaw != "Total") %>% 
+  mutate(mill_vis = Visitors/1000000)
+
+utah_np # 403 observations, 4 variables (make sure they understand where the 4th column came in since we selected for only 3 variables)
+
+# have people suggest another state example
+ca_np <- np_visits %>% 
+  filter(State == "CA",  Type == "National Park") %>% 
+  select(Name, Visitors, YearRaw) %>% 
+  filter(YearRaw != "Total") %>% 
+  mutate(mill_vis = Visitors/1000000)
+
+ca_np # 789 observations, 4 variables
+  
+  
+```
+
+
+```{r graph it}
+
+# ask for structure of ggplot
+# ggplot(dataframe, aes(x = variable1, y = variable2))+
+# geom()
+
+# when i'm building my plot i do it piece by piece and then assign variable name
+visitor_graph <- 
+  ggplot(df5, aes(x = YearRaw, y = kVis))+
+  geom_point(aes(color = Code)) +
+  geom_line(aes(color = Code)) +
+  ggtitle("CA NP Visitations\n1950-2016") +
+  xlab("\nYear") + # \n just adds a blank line before this label
+  ylab("Thousands of Visitors\n") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(color = "black")) +
+  scale_x_continuous(breaks = c(1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020))
+ visitor_graph 
+
+VisBoxplot <- 
+  ggplot(df5, aes(x = Code, y = kVis)) +
+  geom_boxplot(aes(fill = Code)) +
+  theme_bw() +
+  ggtitle("CA NP Visits") +
+  xlab("NP") +
+  ylab("number of visitors") +
+  scale_x_discrete(breaks = c("CHIS","DEVA","JOTR","KICA","LAVO","PINN","REDW","SEQU","YOSE"), 
+                   labels = c("Channel Islands","Death Valley","Joshua Tree","Kings Canyon","Lassen Volcanic","Pinnacles","Redwoods","Sequoia","Yosemite")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = .65))
+
+VisBoxplot 
+```
+
+If there's time for more
+
+# Fish
+
+Tidyverse examples (salmon)
+  a. find sbsambado repo ESM244
+  b. find folder called data
+  c. find data file 'noaa_fisheries.csv'
+  c. download .csv directly into your R proj
+  d. go along with code
+  
+```{r load libraries and data for FISH}
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(kableExtra)
+
+us_landings <- read_csv("Desktop/noaa_fisheries.csv")
+#View(us_landings)
+
+```
+
+## Break data into ways that make sense
+We'll break this up into two pieces:
+
+1. A tidier version of the entire data frame
+2. A subset that only contains salmon information
+```{r split dataset}
+
+# tidy whole dataframe
+landings_tidy <- us_landings %>% 
+  clean_names() %>% # make column headers snake_case
+  mutate(
+    state = str_to_lower(state),
+    afs_name = str_to_lower(afs_name)
+  ) %>% #converts character columns to lowercase
+  mutate(dollars_num = parse_number(dollars_usd))
+
+# just get salmon
+salmon_landings <- landings_tidy %>% 
+  mutate(afs_clean = str_remove(afs_name, pattern = "aggregate")) %>% 
+  filter(str_detect(afs_clean, pattern = "salmon")) %>%  #detect matches for crab
+  separate(afs_clean, into = c("group", "species"), sep = ",")
+
+```
+
+
+## Find grouped summary data
+
+Find the annual total US landings and dollar value (summing across all states) for each type of salmon using `group_by()` + `summarize()`:
+```{r}
+salmon_summary <- salmon_landings %>% 
+  group_by(year, species) %>% 
+  summarize(
+    tot_landings = sum(landings_pounds),
+    tot_value = sum(dollars_num)
+  )
+
+
+salmon_landings_graph <- ggplot(salmon_summary, aes(x = year, y = tot_landings, group = species)) +
+  geom_line(aes(color = species)) +
+  theme_bw() +
+  labs(x = "year", y = "US commercial salmon landings")
+
+salmon_landings_graph
+#ggsave(plot = salmon_landings_graph, here("figures", "us_salmon_landings.png"),
+      # height = 5, width = 8)
+```
+
+
+## 2015 commercial fisheries value by state
+
+Now, let's create a finalized table of the top 5 states (by total commercial fisheries value) for 2015 .
+
+Remember that we already created a tidied data frame, **landings_tidy**. 
+
+*Critical thinking for data wrangling workflow: Why does it make sense (especially now) that we broke our previous wrangling into two steps before getting our salmon subset?* 
+
+```{r}
+state_value <- landings_tidy %>% 
+  filter(year %in% c(2015)) %>% 
+  group_by(state) %>% 
+  summarize(
+    state_value = sum(dollars_num, na.rm = TRUE),
+    state_landings = sum(landings_pounds, na.rm = TRUE)
+  ) %>% 
+  arrange(-state_value) %>% 
+  head(5)
+```
+
+What are some ways we'd want to finalize it for a report?
+
+- Change units (to millions of dollars and pounds)
+- Update column names
+- Capitalize the state names
+
+## Making a nice HTML table
+
+finalized data frame
+```{r}
+state_table <- state_value %>% 
+  mutate('Fisheries value ($ millions)' = round(state_value / 1e6, 2),
+         'Landings (million pounds)' = round(state_landings / 1e6, 1)) %>% 
+  select(-state_value, - state_landings) %>% 
+  rename(State = state) %>% 
+  mutate(State = str_to_title(State))
+```
+
+Now, use `kable()` + `kableExtra` to nicely format it for HTML:
+
+```{r}
+kable(state_table) %>% 
+  kable_styling(bootstrap_options = "striped",
+                full_width = FALSE) %>% 
+  add_header_above(c("", "2015 US commercial fisheries - top 5 states by value" = 2))
+```
